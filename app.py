@@ -40,6 +40,10 @@ def load_and_train():
     si.fit(df[["dist", "mw"]])
     df[["dist", "mw"]] = si.transform(df[["dist", "mw"]])
 
+    for col in df.columns:
+        if df[col].dtype == object:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+
     scaler = preprocessing.MinMaxScaler()
     d = scaler.fit_transform(df)
     df_scaled = pd.DataFrame(d, columns=df.columns)
