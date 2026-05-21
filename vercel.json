@@ -1,5 +1,13 @@
 {
   "version": 2,
-  "builds": [{ "src": "app.py", "use": "@vercel/python" }],
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python",
+      "config": {
+        "includeFiles": ["earthquake1.csv", "templates/**"]
+      }
+    }
+  ],
   "routes": [{ "src": "/(.*)", "dest": "app.py" }]
 }
