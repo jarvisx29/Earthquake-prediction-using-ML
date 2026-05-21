@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify
 import numpy as np
 import pandas as pd
 from sklearn import preprocessing
+import os
 from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
@@ -16,7 +17,7 @@ app = Flask(__name__)
 state = {}
 
 def load_and_train():
-    df = pd.read_csv("earthquake1.csv")
+    df = pd.read_csv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "earthquake1.csv"))
     df = df.drop('id', axis=1)
 
     timestamp = []
