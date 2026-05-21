@@ -33,7 +33,7 @@ def load_and_train():
             le = preprocessing.LabelEncoder()
             df[col] = df[col].fillna('unknown')
             le.fit(df[col])
-            df[col] = le.transform(df[col])
+            df[col] = le.transform(df[col]).astype(float)
             label_encoders[col] = le
 
     si = SimpleImputer(missing_values=np.nan, strategy="mean")
