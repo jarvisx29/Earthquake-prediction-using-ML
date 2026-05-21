@@ -72,12 +72,19 @@ def load_and_train():
     state['xm_scale_min'] = scaler.data_min_[xm_idx]
     state['xm_scale_max'] = scaler.data_max_[xm_idx]
 
-print("Training models...")
-load_and_train()
-print("Done. Models ready.")
+startup_error = None
+try:
+    print("Training models...")
+    load_and_train()
+    print("Done. Models ready.")
+except Exception as e:
+    import traceback
+    startup_error = traceback.format_exc()
 
 @app.route('/')
 def index():
+    if startup_error:
+        return f"<pre>{startup_error}</pre>", 500
     le = state['label_encoders']
     countries = sorted(le['country'].classes_.tolist())
     directions = sorted(le['direction'].classes_.tolist())
