@@ -29,9 +29,9 @@ def load_and_train():
 
     label_encoders = {}
     for col in df.columns:
-        if df[col].dtype == 'object':
+        if not pd.api.types.is_numeric_dtype(df[col]):
             le = preprocessing.LabelEncoder()
-            df[col] = df[col].fillna('unknown')
+            df[col] = df[col].fillna('unknown').astype(str)
             le.fit(df[col])
             df[col] = le.transform(df[col]).astype(float)
             label_encoders[col] = le
