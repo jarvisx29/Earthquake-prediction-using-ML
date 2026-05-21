@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Earthquake Prediction</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #060810;
+    --surface:  #0d1117;
+    --card:     #111827;
+    --border:   #1f2937;
+    --accent:   #e94560;
+    --accent2:  #f5a623;
+    --text:     #f9fafb;
+    --muted:    #6b7280;
+    --green:    #22c55e;
+    --yellow:   #f59e0b;
+    --orange:   #f97316;
+    --red:      #ef4444;
+  }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── animated bg ─────────────────────────────── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(233,69,96,.07) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 80% 80%, rgba(245,166,35,.05) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── layout ──────────────────────────────────── */
+  .wrap { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── header ──────────────────────────────────── */
+  header {
+    padding: 32px 0 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .logo {
+    width: 52px; height: 52px;
+    background: linear-gradient(135deg, var(--accent), #9b1d3c);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem;
+    flex-shrink: 0;
+    box-shadow: 0 0 24px rgba(233,69,96,.35);
+  }
+  header h1 { font-size: 1.7rem; font-weight: 700; letter-spacing: -.5px; }
+  header p  { color: var(--muted); font-size: .9rem; margin-top: 3px; }
+  .badges   { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge {
+    padding: 5px 14px;
+    border-radius: 99px;
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    border: 1px solid;
+  }
+  .badge-lr  { color: #60a5fa; border-color: #3b82f6; background: rgba(59,130,246,.1); }
+  .badge-dt  { color: #4ade80; border-color: #22c55e; background: rgba(34,197,94,.1); }
+  .badge-knn { color: #c084fc; border-color: #a855f7; background: rgba(168,85,247,.1); }
+
+  /* ── main grid ───────────────────────────────── */
+  .main {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: 28px;
+    padding: 32px 0 48px;
+    align-items: start;
+  }
+  @media (max-width: 900px) { .main { grid-template-columns: 1fr; } }
+
+  /* ── form panel ──────────────────────────────── */
+  .form-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    position: sticky;
+    top: 24px;
+  }
+  .panel-title {
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 22px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .field-group { margin-bottom: 14px; }
+  .field-row   { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+
+  label {
+    display: block;
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  input[type="number"], select {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: .9rem;
+    padding: 10px 13px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+    appearance: none;
+  }
+  input[type="number"]:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(233,69,96,.12);
+  }
+  select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 34px; }
+
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  .btn-predict {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--accent) 0%, #b91c1c 100%);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: .5px;
+    transition: opacity .2s, transform .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 20px rgba(233,69,96,.3);
+  }
+  .btn-predict:hover   { opacity: .88; transform: translateY(-1px); }
+  .btn-predict:active  { transform: translateY(0); }
+  .btn-predict .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    display: none;
+  }
+  .btn-predict.loading .spinner { display: block; }
+  .btn-predict.loading .btn-text { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── results panel ───────────────────────────── */
+  .results-panel {}
+
+  .empty-state {
+    height: 340px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    border: 1px dashed var(--border);
+    border-radius: 20px;
+    gap: 14px;
+    transition: opacity .3s;
+  }
+  .empty-state .icon { font-size: 3rem; opacity: .4; }
+  .empty-state p { font-size: .9rem; }
+
+  /* result cards */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    display: none;
+  }
+  .cards-grid.visible { display: grid; }
+
+  .result-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 24px 28px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 24px;
+    animation: slideIn .4s cubic-bezier(.22,1,.36,1) both;
+    transition: border-color .3s;
+  }
+  .result-card:hover { border-color: #374151; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .result-card:nth-child(1) { animation-delay: .05s; }
+  .result-card:nth-child(2) { animation-delay: .12s; }
+  .result-card:nth-child(3) { animation-delay: .19s; }
+
+  .card-left .model-name {
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .card-left .xm-value {
+    font-size: 2.4rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .card-left .sub {
+    font-size: .78rem;
+    color: var(--muted);
+  }
+  .card-left .severity {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 3px 12px;
+    border-radius: 99px;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .sev-minor    { background: rgba(34,197,94,.12);  color: var(--green);  border: 1px solid var(--green); }
+  .sev-moderate { background: rgba(245,158,11,.12); color: var(--yellow); border: 1px solid var(--yellow); }
+  .sev-strong   { background: rgba(249,115,22,.12); color: var(--orange); border: 1px solid var(--orange); }
+  .sev-severe   { background: rgba(239,68,68,.12);  color: var(--red);    border: 1px solid var(--red); }
+
+  /* gauge */
+  .gauge-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .gauge {
+    width: 96px; height: 96px;
+    position: relative;
+  }
+  .gauge svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .gauge-bg   { fill: none; stroke: var(--border); stroke-width: 8; }
+  .gauge-fill { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset .8s cubic-bezier(.22,1,.36,1); }
+  .gauge-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .82rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .gauge-caption { font-size: .65rem; color: var(--muted); letter-spacing: .5px; text-transform: uppercase; }
+
+  .acc-bar-wrap { margin-top: 14px; }
+  .acc-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: .7rem;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+  .acc-bar-track {
+    height: 4px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .acc-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width .8s cubic-bezier(.22,1,.36,1);
+    width: 0%;
+  }
+
+  /* ── footer ──────────────────────────────────── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 20px 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: .78rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <!-- header -->
+  <header>
+    <div class="logo">🌍</div>
+    <div>
+      <h1>Earthquake Predictor</h1>
+      <p>ML-powered seismic magnitude analysis</p>
+    </div>
+    <div class="badges">
+      <span class="badge badge-lr">Linear Reg &nbsp;{{ accuracies.lr }}%</span>
+      <span class="badge badge-dt">Decision Tree &nbsp;{{ accuracies.dt }}%</span>
+      <span class="badge badge-knn">KNN &nbsp;{{ accuracies.knn }}%</span>
+    </div>
+  </header>
+
+  <!-- main grid -->
+  <div class="main">
+
+    <!-- LEFT: form -->
+    <div class="form-panel">
+      <div class="panel-title">Seismic Parameters</div>
+
+      <form id="predict-form" autocomplete="off">
+        <div class="field-row">
+          <div>
+            <label>Latitude</label>
+            <input type="number" id="lat" value="38.2" step="0.01" min="29.74" max="46.35">
+          </div>
+          <div>
+            <label>Longitude</label>
+            <input type="number" id="long" value="28.35" step="0.01" min="18.34" max="48.0">
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div>
+            <label>Depth (km)</label>
+            <input type="number" id="depth" value="10" step="0.5" min="0" max="225">
+          </div>
+          <div>
+            <label>Distance</label>
+            <input type="number" id="dist" value="2.3" step="0.1" min="0.1" max="95.4">
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="panel-title">Magnitude Scales</div>
+
+        <div class="field-row">
+          <div>
+            <label>Richter</label>
+            <input type="number" id="richter" value="3.5" step="0.1" min="0" max="7.2">
+          </div>
+          <div>
+            <label>MD</label>
+            <input type="number" id="md" value="0" step="0.1" min="0" max="7.4">
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div>
+            <label>MW</label>
+            <input type="number" id="mw" value="4.5" step="0.1" min="0" max="7.7">
+          </div>
+          <div>
+            <label>MS</label>
+            <input type="number" id="ms" value="0" step="0.1" min="0" max="7.9">
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label>MB</label>
+          <input type="number" id="mb" value="0" step="0.1" min="0" max="7.1">
+        </div>
+
+        <div class="divider"></div>
+        <div class="panel-title">Location</div>
+
+        <div class="field-group">
+          <label>Country</label>
+          <select id="country">
+            {% for c in countries %}
+            <option value="{{ c }}" {% if c == 'turkey' %}selected{% endif %}>{{ c | capitalize }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label>Direction</label>
+          <select id="direction">
+            {% for d in directions %}
+            <option value="{{ d }}" {% if d == 'west' %}selected{% endif %}>{{ d | replace('_', ' ') | title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="divider"></div>
+
+        <button type="submit" class="btn-predict">
+          <div class="spinner"></div>
+          <span class="btn-text">⚡ &nbsp;Predict Magnitude</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- RIGHT: results -->
+    <div class="results-panel">
+
+      <div class="empty-state" id="empty-state">
+        <div class="icon">📡</div>
+        <p>Enter seismic parameters and hit predict</p>
+      </div>
+
+      <div class="cards-grid" id="cards-grid">
+
+        <!-- LR card -->
+        <div class="result-card" id="card-lr">
+          <div class="card-left">
+            <div class="model-name" style="color:#60a5fa">Linear Regression</div>
+            <div class="xm-value" id="xm-lr" style="color:#60a5fa">—</div>
+            <div class="sub">XM magnitude</div>
+            <div class="severity" id="sev-lr"></div>
+            <div class="acc-bar-wrap">
+              <div class="acc-bar-label">
+                <span>Accuracy</span>
+                <span>{{ accuracies.lr }}%</span>
+              </div>
+              <div class="acc-bar-track">
+                <div class="acc-bar-fill" id="bar-lr" style="background:#3b82f6; width:{{ accuracies.lr }}%"></div>
+              </div>
+            </div>
+          </div>
+          <div class="gauge-wrap">
+            <div class="gauge">
+              <svg viewBox="0 0 36 36">
+                <circle class="gauge-bg"   cx="18" cy="18" r="14"/>
+                <circle class="gauge-fill" cx="18" cy="18" r="14" id="gauge-lr"
+                        stroke="#3b82f6"
+                        stroke-dasharray="87.96 87.96"
+                        stroke-dashoffset="87.96"/>
+              </svg>
+              <div class="gauge-label" id="pct-lr">—</div>
+            </div>
+            <div class="gauge-caption">Normalized</div>
+          </div>
+        </div>
+
+        <!-- DT card -->
+        <div class="result-card" id="card-dt">
+          <div class="card-left">
+            <div class="model-name" style="color:#4ade80">Decision Tree</div>
+            <div class="xm-value" id="xm-dt" style="color:#4ade80">—</div>
+            <div class="sub">XM magnitude</div>
+            <div class="severity" id="sev-dt"></div>
+            <div class="acc-bar-wrap">
+              <div class="acc-bar-label">
+                <span>Accuracy</span>
+                <span>{{ accuracies.dt }}%</span>
+              </div>
+              <div class="acc-bar-track">
+                <div class="acc-bar-fill" id="bar-dt" style="background:#22c55e; width:{{ accuracies.dt }}%"></div>
+              </div>
+            </div>
+          </div>
+          <div class="gauge-wrap">
+            <div class="gauge">
+              <svg viewBox="0 0 36 36">
+                <circle class="gauge-bg"   cx="18" cy="18" r="14"/>
+                <circle class="gauge-fill" cx="18" cy="18" r="14" id="gauge-dt"
+                        stroke="#22c55e"
+                        stroke-dasharray="87.96 87.96"
+                        stroke-dashoffset="87.96"/>
+              </svg>
+              <div class="gauge-label" id="pct-dt">—</div>
+            </div>
+            <div class="gauge-caption">Normalized</div>
+          </div>
+        </div>
+
+        <!-- KNN card -->
+        <div class="result-card" id="card-knn">
+          <div class="card-left">
+            <div class="model-name" style="color:#c084fc">KNN (k=6)</div>
+            <div class="xm-value" id="xm-knn" style="color:#c084fc">—</div>
+            <div class="sub">XM magnitude</div>
+            <div class="severity" id="sev-knn"></div>
+            <div class="acc-bar-wrap">
+              <div class="acc-bar-label">
+                <span>Accuracy</span>
+                <span>{{ accuracies.knn }}%</span>
+              </div>
+              <div class="acc-bar-track">
+                <div class="acc-bar-fill" id="bar-knn" style="background:#a855f7; width:{{ accuracies.knn }}%"></div>
+              </div>
+            </div>
+          </div>
+          <div class="gauge-wrap">
+            <div class="gauge">
+              <svg viewBox="0 0 36 36">
+                <circle class="gauge-bg"   cx="18" cy="18" r="14"/>
+                <circle class="gauge-fill" cx="18" cy="18" r="14" id="gauge-knn"
+                        stroke="#a855f7"
+                        stroke-dasharray="87.96 87.96"
+                        stroke-dashoffset="87.96"/>
+              </svg>
+              <div class="gauge-label" id="pct-knn">—</div>
+            </div>
+            <div class="gauge-caption">Normalized</div>
+          </div>
+        </div>
+
+      </div><!-- /cards-grid -->
+    </div><!-- /results-panel -->
+
+  </div><!-- /main -->
+
+  <footer>Earthquake Prediction &nbsp;·&nbsp; Linear Regression · Decision Tree · KNN</footer>
+</div>
+
+<script>
+const circumference = 2 * Math.PI * 14; // ≈ 87.96
+
+function severity(xm) {
+  if (xm < 4.5) return ['Minor',    'sev-minor'];
+  if (xm < 5.5) return ['Moderate', 'sev-moderate'];
+  if (xm < 6.5) return ['Strong',   'sev-strong'];
+  return             ['Severe',   'sev-severe'];
+}
+
+function updateCard(key, norm, xm) {
+  document.getElementById(`xm-${key}`).textContent  = xm.toFixed(2);
+  document.getElementById(`pct-${key}`).textContent = (norm * 100).toFixed(0) + '%';
+
+  const offset = circumference * (1 - norm);
+  document.getElementById(`gauge-${key}`).style.strokeDashoffset = offset;
+
+  const [label, cls] = severity(xm);
+  const el = document.getElementById(`sev-${key}`);
+  el.textContent  = label;
+  el.className    = 'severity ' + cls;
+}
+
+document.getElementById('predict-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const btn = document.querySelector('.btn-predict');
+  btn.classList.add('loading');
+
+  const payload = {
+    lat:     document.getElementById('lat').value,
+    long:    document.getElementById('long').value,
+    depth:   document.getElementById('depth').value,
+    dist:    document.getElementById('dist').value,
+    richter: document.getElementById('richter').value,
+    md:      document.getElementById('md').value,
+    mw:      document.getElementById('mw').value,
+    ms:      document.getElementById('ms').value,
+    mb:      document.getElementById('mb').value,
+    country:   document.getElementById('country').value,
+    direction: document.getElementById('direction').value,
+  };
+
+  try {
+    const res  = await fetch('/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('cards-grid').classList.add('visible');
+
+    const r = data.results;
+    updateCard('lr',  r.lr.normalized,  r.lr.xm);
+    updateCard('dt',  r.dt.normalized,  r.dt.xm);
+    updateCard('knn', r.knn.normalized, r.knn.xm);
+
+  } catch (err) {
+    alert('Prediction failed — is the server running?');
+  } finally {
+    btn.classList.remove('loading');
+  }
+});
+</script>
+</body>
+</html>
